@@ -120,17 +120,22 @@ function openFaceScanModal(actionLabel) {
 
     (async () => {
       try {
+        // release any leftover stream BEFORE requesting a new one
+        stopCamera();
+
         activeStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
         if (cancelled) return;
         video.srcObject = activeStream;
-        statusEl.textContent = "Position your face in the frame…";
 
-        // brief pause so the person can see their live feed lined up in the
-        // ring before the "analyzing" sequence starts
-        await sleep(700);
+        await video.play().catch(() => {});
+        await waitForVideoReady(video, 6000);
+        await waitForNonBlackFrame(video, 2500); // let sensor warm-up finish so the countdown isn't over a black feed
         if (cancelled) return;
 
-        // 3-second visual countdown while "Analyzing Face…"
+        statusEl.textContent = "Position your face in the frame…";
+        await sleep(500);
+        if (cancelled) return;
+
         for (let s = 3; s >= 1; s--) {
           if (cancelled) return;
           statusEl.textContent = `Analyzing Face… ${s}`;
@@ -138,12 +143,10 @@ function openFaceScanModal(actionLabel) {
         }
         if (cancelled) return;
 
-        // grab a frame just to simulate a real capture, then discard it —
-        // it's never uploaded or written anywhere.
         const canvas = document.createElement("canvas");
         canvas.width = video.videoWidth || 320; canvas.height = video.videoHeight || 240;
         canvas.getContext("2d").drawImage(video, 0, 0);
-        canvas.width = 0; canvas.height = 0; // drop the pixel data immediately
+        canvas.width = 0; canvas.height = 0;
 
         statusEl.textContent = "Face verified";
         video.classList.add("hidden");
@@ -156,10 +159,55 @@ function openFaceScanModal(actionLabel) {
         resolve();
       } catch (e) {
         if (!cancelled) {
-          toast("Couldn't access your camera — check browser permissions.", "error");
+          const msg = e && e.message === "camera-timeout"
+            ? "Camera took too long to start — try again."
+            : "Couldn't access your camera — check browser permissions.";
+          toast(msg, "error");
           finishAndClose(true);
         }
       }
+    })();
+  });
+}
+
+function waitForVideoReady(video, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    if (video.readyState >= 2 && video.videoWidth > 0) return resolve();
+    const timer = setTimeout(() => {
+      video.removeEventListener("loadeddata", onReady);
+      reject(new Error("camera-timeout"));
+    }, timeoutMs);
+    function onReady() {
+      if (video.videoWidth > 0) {
+        clearTimeout(timer);
+        video.removeEventListener("loadeddata", onReady);
+        resolve();
+      }
+    }
+    video.addEventListener("loadeddata", onReady);
+  });
+}
+
+function waitForNonBlackFrame(video, maxWaitMs = 2500) {
+  return new Promise(resolve => {
+    const start = performance.now();
+    const canvas = document.createElement("canvas");
+    canvas.width = 20; canvas.height = 20;
+    const ctx = canvas.getContext("2d");
+
+    function isBright() {
+      ctx.drawImage(video, 0, 0, 20, 20);
+      const data = ctx.getImageData(0, 0, 20, 20).data;
+      let total = 0;
+      for (let i = 0; i < data.length; i += 4) total += data[i] + data[i + 1] + data[i + 2];
+      return (total / (data.length / 4 * 3)) > 12;
+    }
+
+    (function poll() {
+      let bright = false;
+      try { bright = isBright(); } catch { /* frame not decodable yet, keep polling */ }
+      if (bright || performance.now() - start > maxWaitMs) return resolve();
+      requestAnimationFrame(poll);
     })();
   });
 }
