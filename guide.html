@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>SmolBiz — User Guide</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmolBIZ — User Guide</title>
 <style>
   body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #222; }
   h1 { border-bottom: 3px solid #333; padding-bottom: 8px; }
@@ -12,19 +13,47 @@
   .admin-tag { background: #d35400; }
   .worker-tag { background: #2980b9; }
   ul { margin-top: 4px; }
+
+  .top-back-link {
+    display: inline-block;
+    font-size: 14px;
+    text-decoration: none;
+    color: #555;
+    padding: 6px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    margin-bottom: 20px;
+  }
+  .top-back-link:hover { background: #f4f4f4; }
+
+  .try-now-btn {
+    display: block;
+    text-align: center;
+    background: #d35400;
+    color: white;
+    text-decoration: none;
+    font-size: 20px;
+    font-weight: bold;
+    padding: 18px 24px;
+    border-radius: 10px;
+    margin: 50px 0 20px;
+  }
+  .try-now-btn:hover { background: #b8460a; }
 </style>
 </head>
 <body>
 
-<h1>SmolBiz — How to Use This Website</h1>
-<p>SmolBiz is a small business management web app. It's built for two kinds of accounts: 
+<a href="index.html" class="top-back-link">← Back</a>
+
+<h1>SmolBIZ — How to Use This Website</h1>
+<p>SmolBIZ is a small business management web app. It's built for two kinds of accounts: 
 <b>Admin</b> (the business owner/manager) and <b>Worker</b> (staff). What you can see and do 
 depends on which role you signed up or were invited as.</p>
 
 <h2>1. Logging In / Signing Up</h2>
 <ul>
   <li>Admins sign up directly and create their business profile.</li>
-  <li>Workers join through register with the email their admin invites them with — they don't self-register from scratch.</li>
+  <li>Workers join through an invite link/token sent by their admin — they don't self-register from scratch.</li>
 </ul>
 
 <h2>2. The Sidebar Menu</h2>
@@ -62,7 +91,7 @@ depends on which role you signed up or were invited as.</p>
 <h2>4. Sales & Products <span class="role-tag admin-tag">Admin</span></h2>
 <ul>
   <li>Add products with price, stock, and a low-stock threshold so you get warned before running out.</li>
-  <li>Record each sale against a product — SmolBiz tracks quantity and payment method.</li>
+  <li>Record each sale against a product — SmolBIZ tracks quantity and payment method.</li>
 </ul>
 
 <h2>5. Expenses <span class="role-tag admin-tag">Admin</span></h2>
@@ -85,7 +114,9 @@ depends on which role you signed up or were invited as.</p>
 <p>Admins manage business-wide settings (business name, logo, etc.); workers manage their own personal account info and avatar.</p>
 
 <h2>10. Notifications</h2>
-<p>SmolBiz plays a sound and shows an unread dot when a new chat message comes in on a channel you're not currently viewing, so you don't miss anything while working on another page.</p>
+<p>SmolBIZ plays a sound and shows an unread dot when a new chat message comes in on a channel you're not currently viewing, so you don't miss anything while working on another page.</p>
+
+<a href="index.html" class="try-now-btn">Try SmolBIZ Now!</a>
 
 </body>
 </html>

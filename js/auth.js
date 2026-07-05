@@ -18,7 +18,7 @@ function mountScreen(html) {
 export function renderWelcome() {
   mountScreen(`
     <div class="auth-card" style="text-align:center;max-width:380px;">
-      <img class="logo-mark-lg" src="assets/logo.png" alt="SmolBiz logo">
+      <img class="logo-mark-lg" src="assets/logo.png" alt="SmolBIZ logo">
       <div class="brand" style="justify-content:center;"><span class="dot"></span> SmolBIZ</div>
       <h1 style="margin-top:18px;">Run your small business from one tab.</h1>
       <p class="sub">Sales, stock, shifts, and your team's group chat — with an AI assist that reads your numbers so you don't have to.</p>
@@ -41,7 +41,7 @@ const GUIDE_SLIDES = [
   {
     emoji: "🤖",
     title: "An AI that reads your numbers",
-    body: "SmolBiz quietly watches your sales, stock, and trends, then hands you a plain-language insight on your home page — no dashboards to decode."
+    body: "SmolBIZ quietly watches your sales, stock, and trends, then hands you a plain-language insight on your home page — no dashboards to decode."
   },
   {
     emoji: "👥",
@@ -90,7 +90,7 @@ function renderFirstTimeGuide(step = 0) {
 export function renderLogin() {
   mountScreen(`
     <div class="auth-card">
-      <img class="logo-mark-lg" src="assets/logo.png" alt="SmolBiz logo">
+      <img class="logo-mark-lg" src="assets/logo.png" alt="SmolBIZ logo">
       <div class="brand"><span class="dot"></span> SmolBIZ</div>
       <h1>Welcome back</h1>
       <p class="sub">Log in to your workspace.</p>
@@ -118,7 +118,7 @@ export function renderLogin() {
 export function renderSignup() {
   mountScreen(`
     <div class="auth-card">
-      <img class="logo-mark-lg" src="assets/logo.png" alt="SmolBiz logo">
+      <img class="logo-mark-lg" src="assets/logo.png" alt="SmolBIZ logo">
       <div class="brand"><span class="dot"></span> SmolBIZ</div>
       <h1>Create your account</h1>
       <p class="sub">If your email was invited by an admin, we'll take you straight into their workspace. Otherwise we'll set up a new business for you.</p>
