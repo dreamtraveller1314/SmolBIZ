@@ -7,17 +7,17 @@
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root{
-  --ink:        #1F2937;
-  --ink-2:      #173D7A;
-  --surface:    #FFFFFF;
-  --surface-2:  #F5FAFF;
-  --line:       #E5EDF8;
-  --paper:      #FFFFFF;
-  --muted:      #64748B;
-  --amber:      #4FA7FF;
-  --amber-ink:  #FFFFFF;
-  --teal:       #60A5FA;
-  --coral:      #EF4444;
+  --ink:        #14172B;
+  --ink-2:      #1B1F3B;
+  --surface:    #1E2340;
+  --surface-2:  #262B4D;
+  --line:       #33385E;
+  --paper:      #F3F1EA;
+  --muted:      #9297BE;
+  --amber:      #F2A93C;
+  --amber-ink:  #3A2A08;
+  --teal:       #4FB0A5;
+  --coral:      #E8735D;
   --radius-s:   8px;
   --radius-m:   14px;
   --radius-l:   22px;
