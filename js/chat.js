@@ -39,18 +39,11 @@ async function paintChatPage() {
     <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;">
       <button class="btn ${tab === "chat" ? "btn-primary" : "btn-ghost"} btn-sm" id="tab-chat">💬 Chat</button>
       <button class="btn ${tab === "calendar" ? "btn-primary" : "btn-ghost"} btn-sm" id="tab-cal">🗓️ Calendar</button>
-      <button class="btn btn-ghost btn-sm" id="sound-toggle" style="margin-left:auto;" title="Toggle notification sound">
-        ${isSoundEnabled() ? "🔔 Sound on" : "🔕 Sound off"}
-      </button>
     </div>
     <div id="tab-body"></div>
   `);
   $("#tab-chat").onclick = () => { tab = "chat"; paintChatPage(); };
   $("#tab-cal").onclick = () => { tab = "calendar"; paintChatPage(); };
-  $("#sound-toggle").onclick = () => {
-    setSoundEnabled(!isSoundEnabled());
-    $("#sound-toggle").textContent = isSoundEnabled() ? "🔔 Sound on" : "🔕 Sound off";
-  };
 
   if (tab === "chat") paintChatTab(channels, isAdmin);
   else paintCalendarTab();

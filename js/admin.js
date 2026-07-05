@@ -64,7 +64,7 @@ export async function renderAdminHome() {
   const todaySales = sales.filter(t => new Date(t.created_at) >= startOfDay).reduce((s, t) => s + Number(t.amount), 0);
   const weekSales = sales.filter(t => new Date(t.created_at) >= startOfWeek).reduce((s, t) => s + Number(t.amount), 0);
   const lastWeekSales = sales.filter(t => new Date(t.created_at) >= startOfLastWeek && new Date(t.created_at) < startOfWeek).reduce((s, t) => s + Number(t.amount), 0);
-  const totalProfit = sales.reduce((s, t) => s + Number(t.amount) - Number(t.cost_at_sale || 0), 0) - expenses.reduce((s, t) => s + Number(t.amount), 0);
+  const totalProfit = sales.reduce((s, t) => s + Number(t.amount), 0) - expenses.reduce((s, t) => s + Number(t.amount), 0);
   const pendingOrders = all.filter(t => t.type === "sale" && (t.note || "").toLowerCase().includes("pending")).length;
   const lowStockItems = (products || []).filter(p => p.stock <= p.low_stock_threshold);
 
