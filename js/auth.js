@@ -24,7 +24,7 @@ export function renderWelcome() {
       <p class="sub">Sales, stock, shifts, and your team's group chat — with an AI assist that reads your numbers so you don't have to.</p>
       <button class="btn btn-primary btn-block" id="go-signup">Get started</button>
       <div class="switch-row">Already onboarded? <button class="link-btn" id="go-login">Log in</button></div>
-      <div class="switch-row" style="margin-top:4px;">First time here? <button class="link-btn" id="go-guide">See how it works</button></div>
+      <div class="switch-row" style="margin-top:4px;">First time here? <a href="guide.html" class="button-link">See how it works</a></div>
     </div>
   `);
   $("#go-signup").onclick = renderSignup;
