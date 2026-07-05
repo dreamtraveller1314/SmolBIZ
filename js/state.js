@@ -9,13 +9,16 @@ export const state = {
     logoUrl: "",
     salesPlatform: "",
     monthlyRevenue: "",
+    contactEmail: "",
     locationLat: null,
     locationLng: null,
     locationAddress: "",
     invites: []
   },
   activeChannelId: null,
-  chatSubscription: null
+  chatSubscription: null,
+  businessChannelIds: [],   // cached channel ids for this business, used for the global unread watcher
+  globalMsgSubscription: null
 };
 
 export function resetOnboarding() {
@@ -25,6 +28,7 @@ export function resetOnboarding() {
     logoUrl: "",
     salesPlatform: "",
     monthlyRevenue: "",
+    contactEmail: "",
     locationLat: null,
     locationLng: null,
     locationAddress: "",

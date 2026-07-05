@@ -1,10 +1,13 @@
 import { $, $all, initials } from "./utils.js";
 import { state } from "./state.js";
 import { logout } from "./auth.js";
+import { getChatUnreadFlag } from "./notify.js";
 
 const ADMIN_NAV = [
   { id: "home", ic: "🏠", label: "Home" },
   { id: "sales", ic: "🧾", label: "Sales & Products" },
+  { id: "expenses", ic: "💸", label: "Expenses" },
+  { id: "analytics", ic: "📊", label: "Analytics" },
   { id: "collab", ic: "🤝", label: "Collab & Trend" },
   { id: "chat", ic: "💬", label: "Chat & Calendar" },
   { id: "workers", ic: "👥", label: "Worker Management" },
@@ -32,9 +35,9 @@ export function renderShell(activePage) {
   app.innerHTML = `
     <div class="app-shell">
       <div class="sidebar" id="sidebar">
-        <div class="brand"><span class="dot"></span> SMOLBIZ</div>
+        <div class="brand"><img class="logo-mark" src="assets/logo.png" alt="SmolBiz"> SMOLBIZ</div>
         ${nav.map(n => `<div class="nav-item ${n.id === activePage ? "active" : ""}" data-page="${n.id}">
-            <span class="ic">${n.ic}</span> ${n.label}
+            <span class="ic">${n.ic}${(n.id === "chat" && getChatUnreadFlag() && activePage !== "chat") ? `<span class="unread-dot"></span>` : ""}</span> ${n.label}
           </div>`).join("")}
         <div class="sidebar-footer">
           <div class="who">

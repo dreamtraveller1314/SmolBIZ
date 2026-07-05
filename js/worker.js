@@ -20,6 +20,7 @@ export async function renderWorkerHome() {
   const todaysSales = (myTxns || []).filter(t => t.type === "sale" && new Date(t.created_at) >= startOfDay).reduce((s, t) => s + Number(t.amount), 0);
   const lowStock = (products || []).filter(p => p.stock <= p.low_stock_threshold);
   const clockedIn = !!openAttendance;
+  const canSeeProducts = state.profile.permissions?.products !== false;
 
   mountMain(`
     ${pageHeader("Home", state.business.name)}
@@ -42,6 +43,16 @@ export async function renderWorkerHome() {
         ${lowStock.length ? `<div class="panel" style="margin-top:14px;"><h3>Low stock (store-wide)</h3>${lowStock.map(p => `<div class="item-card"><div class="item-main"><div class="name">${p.name}</div><div class="meta">${p.stock} left</div></div><span class="pill low">Low</span></div>`).join("")}</div>` : ""}
       </div>
     </div>
+    ${canSeeProducts ? `
+    <div class="panel">
+      <h3>Inventory</h3>
+      ${(products && products.length) ? `<table>
+        <thead><tr><th>Product</th><th>Price</th><th>Stock</th></tr></thead>
+        <tbody>
+          ${products.map(p => `<tr><td>${p.name}${p.sku ? ` <span class="meta">(${p.sku})</span>` : ""}</td><td class="mono">${money(p.price)}</td><td class="mono">${p.stock}${p.stock <= p.low_stock_threshold ? ` <span class="pill low">Low</span>` : ""}</td></tr>`).join("")}
+        </tbody>
+      </table>` : `<div class="empty-state">No products added yet.</div>`}
+    </div>` : ""}
     <div class="panel">
       <h3>My recent activity</h3>
       <table>
@@ -60,86 +71,150 @@ export async function renderWorkerHome() {
   $("#qa-expense").onclick = () => openWorkerExpenseModal();
 }
 
-// ---------- attendance: GPS + camera ----------
-async function handleClockIn() {
-  const biz = state.business;
-  const needsGPS = biz.location_lat != null && biz.location_lng != null;
+// ---------- attendance: GPS + simulated face-recognition scan ----------
+// The photo never leaves the browser — it's grabbed onto a canvas just long
+// enough to run the "analyzing" animation, then thrown away. Nothing is
+// uploaded to Supabase storage, per how this feature is meant to work.
+function getLocation() {
+  return new Promise(resolve => {
+    if (!navigator.geolocation) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => resolve(null),
+      { timeout: 8000 }
+    );
+  });
+}
 
-  openModal(`
-    <button class="modal-close" id="modal-x">✕</button>
-    <h3>Clock in</h3>
-    <p class="sub" style="margin-top:-8px;">${needsGPS ? "We'll check you're near the workplace, then " : ""}Take a quick photo to confirm it's you.</p>
-    <div id="clockin-status" class="status-line"></div>
-    <video id="cam-video" class="cam-preview hidden" autoplay playsinline></video>
-    <canvas id="cam-canvas" class="hidden"></canvas>
-    <img id="cam-shot" class="cam-preview hidden">
-    <button class="btn btn-ghost btn-block" id="start-cam" style="margin-top:8px;">📷 Open camera</button>
-    <button class="btn btn-primary btn-block" id="confirm-clockin" style="margin-top:8px;" disabled>Confirm clock-in</button>
-  `);
-  $("#modal-x").onclick = () => { stopCamera(); closeModal(); };
+// Opens the face-scan modal, runs the webcam + neon-frame + countdown +
+// checkmark sequence, and resolves once it's done (or rejects if the person
+// cancels / the camera can't be opened). Never stores the photo anywhere.
+function openFaceScanModal(actionLabel) {
+  return new Promise((resolve, reject) => {
+    openModal(`
+      <button class="modal-close" id="modal-x">✕</button>
+      <h3>${actionLabel}</h3>
+      <div class="face-scan-frame">
+        <video id="scan-video" autoplay playsinline muted></video>
+        <div class="scan-ring"></div>
+        <div class="scan-line"></div>
+        <div class="scan-check hidden" id="scan-check">✓</div>
+      </div>
+      <div class="status-line" id="scan-status" style="text-align:center;margin-top:10px;">Starting camera…</div>
+      <button class="btn btn-ghost btn-block" id="scan-cancel" style="margin-top:12px;">Cancel</button>
+    `);
 
-  let lat = null, lng = null, withinRange = true;
-  if (needsGPS) {
-    $("#clockin-status").textContent = "Checking your location…";
-    navigator.geolocation.getCurrentPosition(pos => {
-      lat = pos.coords.latitude; lng = pos.coords.longitude;
-      const dist = distanceMeters(lat, lng, biz.location_lat, biz.location_lng);
-      withinRange = dist <= ATTENDANCE_RADIUS_METERS;
-      $("#clockin-status").textContent = withinRange
-        ? `You're on-site (${Math.round(dist)}m from the shop).`
-        : `Heads up — you're ${Math.round(dist)}m away, outside the ${ATTENDANCE_RADIUS_METERS}m radius. You can still clock in; it'll be flagged.`;
-    }, () => { $("#clockin-status").textContent = "Couldn't read your location — continuing with photo only."; });
-  }
+    const video = $("#scan-video");
+    const statusEl = $("#scan-status");
+    let cancelled = false;
 
-  let photoDataUrl = null;
-  $("#start-cam").onclick = async () => {
-    try {
-      activeStream = await navigator.mediaDevices.getUserMedia({ video: true });
-      const video = $("#cam-video");
-      video.srcObject = activeStream; video.classList.remove("hidden");
-      $("#start-cam").textContent = "📸 Take photo";
-      $("#start-cam").onclick = () => {
-        const canvas = $("#cam-canvas");
-        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    $("#modal-x").onclick = () => finishAndClose(true);
+    $("#scan-cancel").onclick = () => finishAndClose(true);
+
+    function finishAndClose(wasCancelled) {
+      cancelled = wasCancelled;
+      stopCamera();
+      closeModal();
+      if (wasCancelled) reject(new Error("cancelled"));
+    }
+
+    (async () => {
+      try {
+        activeStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+        if (cancelled) return;
+        video.srcObject = activeStream;
+        statusEl.textContent = "Position your face in the frame…";
+
+        // brief pause so the person can see their live feed lined up in the
+        // ring before the "analyzing" sequence starts
+        await sleep(700);
+        if (cancelled) return;
+
+        // 3-second visual countdown while "Analyzing Face…"
+        for (let s = 3; s >= 1; s--) {
+          if (cancelled) return;
+          statusEl.textContent = `Analyzing Face… ${s}`;
+          await sleep(1000);
+        }
+        if (cancelled) return;
+
+        // grab a frame just to simulate a real capture, then discard it —
+        // it's never uploaded or written anywhere.
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth || 320; canvas.height = video.videoHeight || 240;
         canvas.getContext("2d").drawImage(video, 0, 0);
-        photoDataUrl = canvas.toDataURL("image/jpeg", .85);
-        $("#cam-shot").src = photoDataUrl; $("#cam-shot").classList.remove("hidden");
-        video.classList.add("hidden"); stopCamera();
-        $("#confirm-clockin").disabled = false;
-        $("#start-cam").classList.add("hidden");
-      };
-    } catch (e) { toast("Couldn't access your camera — check browser permissions.", "error"); }
-  };
+        canvas.width = 0; canvas.height = 0; // drop the pixel data immediately
 
-  $("#confirm-clockin").onclick = async () => {
-    const photo_url = await uploadDataUrl(photoDataUrl, "attendance");
-    const { error } = await supabase.from("attendance").insert({
-      business_id: state.business.id, worker_id: state.profile.id,
-      clock_in: new Date().toISOString(), lat, lng, within_range: withinRange, photo_url
-    });
-    if (error) return toast(error.message, "error");
-    closeModal(); toast("Clocked in!", "success"); renderWorkerHome();
-  };
+        statusEl.textContent = "Face verified";
+        video.classList.add("hidden");
+        $("#scan-check").classList.remove("hidden");
+        await sleep(900);
+        if (cancelled) return;
+
+        stopCamera();
+        closeModal();
+        resolve();
+      } catch (e) {
+        if (!cancelled) {
+          toast("Couldn't access your camera — check browser permissions.", "error");
+          finishAndClose(true);
+        }
+      }
+    })();
+  });
 }
 
-async function handleClockOut(record) {
-  if (!confirm("Clock out now?")) return;
-  await supabase.from("attendance").update({ clock_out: new Date().toISOString() }).eq("id", record.id);
-  toast("Clocked out — nice work today.", "success");
-  renderWorkerHome();
-}
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 function stopCamera() {
   if (activeStream) { activeStream.getTracks().forEach(t => t.stop()); activeStream = null; }
 }
 
-async function uploadDataUrl(dataUrl, folder) {
-  if (!dataUrl) return null;
-  const blob = await (await fetch(dataUrl)).blob();
-  const path = `${folder}/${state.profile.id}-${Date.now()}.jpg`;
-  const { error } = await supabase.storage.from("smolbiz-media").upload(path, blob, { contentType: "image/jpeg" });
-  if (error) return null;
-  return supabase.storage.from("smolbiz-media").getPublicUrl(path).data.publicUrl;
+async function handleClockIn() {
+  const biz = state.business;
+  const needsGPS = biz.location_lat != null && biz.location_lng != null;
+
+  let lat = null, lng = null, withinRange = true;
+  if (needsGPS) {
+    const loc = await getLocation();
+    if (loc) {
+      lat = loc.lat; lng = loc.lng;
+      const dist = distanceMeters(lat, lng, biz.location_lat, biz.location_lng);
+      withinRange = dist <= ATTENDANCE_RADIUS_METERS;
+    }
+  }
+
+  try {
+    await openFaceScanModal("Clock in — face scan");
+  } catch { return; } // cancelled
+
+  const { error } = await supabase.from("attendance").insert({
+    business_id: state.business.id, worker_id: state.profile.id,
+    clock_in: new Date().toISOString(), lat, lng, within_range: withinRange, photo_url: null
+  });
+  if (error) return toast(error.message, "error");
+  toast("Clocked in!", "success"); renderWorkerHome();
+}
+
+async function handleClockOut(record) {
+  const biz = state.business;
+  const needsGPS = biz.location_lat != null && biz.location_lng != null;
+  let lat = record.lat, lng = record.lng;
+  if (needsGPS) {
+    const loc = await getLocation();
+    if (loc) { lat = loc.lat; lng = loc.lng; }
+  }
+
+  try {
+    await openFaceScanModal("Clock out — face scan");
+  } catch { return; } // cancelled
+
+  const { error } = await supabase.from("attendance").update({
+    clock_out: new Date().toISOString(), lat, lng
+  }).eq("id", record.id);
+  if (error) return toast(error.message, "error");
+  toast("Clocked out — nice work today.", "success");
+  renderWorkerHome();
 }
 
 // ---------- worker sale (mandatory photo proof) ----------

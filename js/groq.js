@@ -45,6 +45,38 @@ export async function generateInsight({ businessName, todaySales, weekSales, las
   return `Today's sales are ${"$" + todaySales.toFixed(2)}, and ${trend}${topProduct ? ` Your top seller is ${topProduct}.` : ""}${lowStock ? ` ${lowStock} product${lowStock > 1 ? "s are" : " is"} running low on stock.` : ""}`;
 }
 
+// Asks Groq to read a chat message and pull out meeting details, so phrasing
+// like "next Monday", "this Friday afternoon", or "in 2 weeks" resolves to an
+// exact date — the old regex parser only understood "today"/"tomorrow" + a time.
+// Returns { title, when: Date } or null (either "not a meeting" or the AI call
+// is unavailable, in which case the caller should fall back to parseMeetingIntent).
+export async function parseMeetingWithAI(text, nowDate = new Date()) {
+  const system = `You extract meeting/event scheduling info from a workplace chat message.
+Today's date and time, for resolving relative dates, is: ${nowDate.toISOString()} (this is ISO 8601, UTC).
+Reply with ONLY a compact JSON object, no markdown, no explanation, in exactly this shape:
+{"isMeeting": boolean, "title": string, "isoDatetime": string|null}
+- "isMeeting" is true only if the message is scheduling or mentioning a specific meeting/call/sync/standup/catch-up with a day and/or time.
+- "title" is a short human title for it, e.g. "Team sync" or "Client call".
+- "isoDatetime" is the resolved date+time in ISO 8601 in the same timezone offset as the "today" value above, or null if no usable date/time was mentioned.
+- Phrases like "next Monday" mean the *upcoming* Monday relative to today, never today itself even if today is a Monday.
+- If no time of day is mentioned, default to 09:00.
+If the message isn't about scheduling a meeting, reply {"isMeeting": false, "title": "", "isoDatetime": null}.`;
+
+  const raw = await askGroq(system, text);
+  if (!raw) return null;
+  try {
+    const cleaned = raw.replace(/```json|```/g, "").trim();
+    const parsed = JSON.parse(cleaned);
+    if (!parsed.isMeeting || !parsed.isoDatetime) return null;
+    const when = new Date(parsed.isoDatetime);
+    if (isNaN(when.getTime())) return null;
+    return { title: parsed.title || "Meeting", when };
+  } catch (e) {
+    console.error("Couldn't parse Groq meeting-intent response", raw, e);
+    return null;
+  }
+}
+
 // Very small linear forecast used to feed the predictive chart + narrate it.
 export function forecastNextPeriod(dailyTotals) {
   const n = dailyTotals.length;

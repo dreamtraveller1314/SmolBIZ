@@ -2,14 +2,16 @@ import { supabase } from "./supabaseClient.js";
 import { state } from "./state.js";
 import { renderWelcome } from "./auth.js";
 import { initShell } from "./shell.js";
-import { renderAdminHome, renderSales, renderCollab, renderWorkers, renderAdminSettings } from "./admin.js";
+import { renderAdminHome, renderSales, renderCollab, renderWorkers, renderAdminSettings, renderExpenses, renderAnalytics } from "./admin.js";
 import { renderWorkerHome, renderWorkerSettings } from "./worker.js";
-import { renderChat } from "./chat.js";
+import { renderChat, startGlobalMessageWatcher } from "./chat.js";
 import { toast } from "./utils.js";
 
 const ADMIN_ROUTES = {
   home: renderAdminHome,
   sales: renderSales,
+  expenses: renderExpenses,
+  analytics: renderAnalytics,
   collab: renderCollab,
   chat: () => renderChat("chat"),
   workers: renderWorkers,
@@ -39,6 +41,10 @@ export async function bootApp() {
   const { data: business } = await supabase.from("businesses").select("*").eq("id", profile.business_id).maybeSingle();
   if (!business) { toast("Couldn't load your business — please log in again.", "error"); return renderWelcome(); }
   state.business = business;
+
+  const { data: channels } = await supabase.from("channels").select("id").eq("business_id", business.id);
+  state.businessChannelIds = (channels || []).map(c => c.id);
+  startGlobalMessageWatcher();
 
   if (profile.role === "admin") renderAdminHome();
   else renderWorkerHome();

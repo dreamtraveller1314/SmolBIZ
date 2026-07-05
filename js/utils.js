@@ -58,15 +58,22 @@ export function toast(msg, kind = "info") {
     document.body.appendChild(box);
   }
   const t = document.createElement("div");
-  const bg = kind === "error" ? "#E8735D" : kind === "success" ? "#4FB0A5" : "#262B4D";
-  t.style.cssText = `background:${bg};color:#14172B;font-weight:600;padding:11px 16px;border-radius:10px;font-size:13px;font-family:Inter,sans-serif;box-shadow:0 10px 24px -8px rgba(0,0,0,.5);max-width:320px;`;
+  const bg = kind === "error" ? "#E2564A" : kind === "success" ? "#2AA398" : "#12233F";
+  const fg = kind === "info" ? "#F3F8FF" : "#0A1526";
+  t.style.cssText = `background:${bg};color:${fg};font-weight:600;padding:11px 16px;border-radius:10px;font-size:13px;font-family:Inter,sans-serif;box-shadow:0 10px 24px -8px rgba(20,40,80,.35);max-width:320px;`;
   t.textContent = msg;
   box.appendChild(t);
   setTimeout(() => t.remove(), 3800);
 }
 
-// simple client-side "NLP": looks for meeting-style phrases and a time,
-// returns { title, when: Date } or null.
+const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+
+// Local, offline fallback "NLP": looks for meeting-style phrases and a time.
+// Understands "today", "tomorrow", plain weekday names ("monday"), and
+// "next <weekday>" (which always means the occurrence in the coming week,
+// not today even if today happens to be that weekday).
+// Returns { title, when: Date } or null. This runs instantly and is also
+// used when the Groq call in groq.js is unavailable or fails.
 export function parseMeetingIntent(text) {
   const lower = text.toLowerCase();
   if (!/(meeting|call|sync|standup|catch[- ]?up)/.test(lower)) return null;
@@ -81,12 +88,33 @@ export function parseMeetingIntent(text) {
   if (ampm === "am" && hour === 12) hour = 0;
 
   const when = new Date();
-  if (lower.includes("tomorrow")) when.setDate(when.getDate() + 1);
+  const now = new Date();
+
+  const nextWeekdayMatch = lower.match(/next\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)/);
+  const plainWeekdayMatch = !nextWeekdayMatch && lower.match(/\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/);
+
+  if (lower.includes("tomorrow")) {
+    when.setDate(when.getDate() + 1);
+  } else if (nextWeekdayMatch) {
+    const targetDay = WEEKDAYS.indexOf(nextWeekdayMatch[1]);
+    let delta = (targetDay - now.getDay() + 7) % 7;
+    delta = delta === 0 ? 7 : delta; // "next monday" always means a future monday, never today
+    delta += 7; // "next" pushes it to the week after this coming one
+    when.setDate(when.getDate() + delta);
+  } else if (plainWeekdayMatch) {
+    const targetDay = WEEKDAYS.indexOf(plainWeekdayMatch[1]);
+    let delta = (targetDay - now.getDay() + 7) % 7;
+    delta = delta === 0 ? 7 : delta; // if they name today's weekday, assume they mean next week's
+    when.setDate(when.getDate() + delta);
+  }
+
   when.setHours(hour, minute, 0, 0);
-  if (when < new Date() && !lower.includes("tomorrow")) when.setDate(when.getDate() + 1);
+  if (when < now && !lower.includes("tomorrow") && !nextWeekdayMatch && !plainWeekdayMatch) {
+    when.setDate(when.getDate() + 1);
+  }
 
   const titleMatch = lower.match(/(meeting|call|sync|standup|catch[- ]?up)[^.!?]*/);
-  const title = (titleMatch ? titleMatch[0] : "Meeting").replace(/\bat\b.*$/, "").trim();
+  const title = (titleMatch ? titleMatch[0] : "Meeting").replace(/\bat\b.*$/, "").replace(/\bon\b.*$/, "").trim();
   const niceTitle = title.charAt(0).toUpperCase() + title.slice(1);
 
   return { title: niceTitle || "Meeting", when };

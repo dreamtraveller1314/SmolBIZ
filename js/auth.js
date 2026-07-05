@@ -18,20 +18,79 @@ function mountScreen(html) {
 export function renderWelcome() {
   mountScreen(`
     <div class="auth-card" style="text-align:center;max-width:380px;">
+      <img class="logo-mark-lg" src="assets/logo.png" alt="SmolBiz logo">
       <div class="brand" style="justify-content:center;"><span class="dot"></span> SMOLBIZ</div>
       <h1 style="margin-top:18px;">Run your small business from one tab.</h1>
       <p class="sub">Sales, stock, shifts, and your team's group chat — with an AI assist that reads your numbers so you don't have to.</p>
       <button class="btn btn-primary btn-block" id="go-signup">Get started</button>
       <div class="switch-row">Already onboarded? <button class="link-btn" id="go-login">Log in</button></div>
+      <div class="switch-row" style="margin-top:4px;">First time here? <button class="link-btn" id="go-guide">See how it works</button></div>
     </div>
   `);
   $("#go-signup").onclick = renderSignup;
   $("#go-login").onclick = renderLogin;
+  $("#go-guide").onclick = renderFirstTimeGuide;
+}
+
+const GUIDE_SLIDES = [
+  {
+    emoji: "🧾",
+    title: "Everything in one tab",
+    body: "Sales, products, expenses, worker shifts, and your team chat all live in one dashboard — no more juggling spreadsheets, WhatsApp, and a notebook."
+  },
+  {
+    emoji: "🤖",
+    title: "An AI that reads your numbers",
+    body: "SmolBiz quietly watches your sales, stock, and trends, then hands you a plain-language insight on your home page — no dashboards to decode."
+  },
+  {
+    emoji: "👥",
+    title: "Admins and workers see different views",
+    body: "As the admin, you set up the business, invite your team, and manage permissions. Workers get a simpler view focused on clocking in, logging sales, and chatting with the team."
+  },
+  {
+    emoji: "🗓️",
+    title: "Chat that understands plans",
+    body: "Mention a meeting in chat — like \"team sync next Monday at 4pm\" — and it's automatically added to the shared calendar for everyone. Admins can edit or remove events; workers see a read-only calendar."
+  },
+  {
+    emoji: "🪪",
+    title: "Face-scan clock in/out",
+    body: "Workers clock in and out with a quick on-device face scan plus location check. Nothing is uploaded or stored — it's just a live verification moment."
+  },
+  {
+    emoji: "💸",
+    title: "Expenses & Analytics",
+    body: "Track spending by category with a breakdown chart, and check your Analytics tab any time for a plain-language health score on how the business is doing."
+  }
+];
+
+function renderFirstTimeGuide(step = 0) {
+  const slide = GUIDE_SLIDES[step];
+  const isLast = step === GUIDE_SLIDES.length - 1;
+  mountScreen(`
+    <div class="auth-card" style="text-align:center;max-width:420px;">
+      ${stepsBar(step, GUIDE_SLIDES.length)}
+      <div style="font-size:44px;margin-bottom:6px;">${slide.emoji}</div>
+      <h1>${slide.title}</h1>
+      <p class="sub">${slide.body}</p>
+      <div style="display:flex;gap:10px;">
+        ${step > 0 ? `<button class="btn btn-ghost" style="flex:1;" id="guide-back">Back</button>` : ""}
+        <button class="btn btn-primary" style="flex:2;" id="guide-next">${isLast ? "Get started" : "Next"}</button>
+      </div>
+      <div class="switch-row"><button class="link-btn" id="guide-skip">Skip</button></div>
+    </div>
+  `);
+  const backBtn = $("#guide-back");
+  if (backBtn) backBtn.onclick = () => renderFirstTimeGuide(step - 1);
+  $("#guide-next").onclick = () => isLast ? renderSignup() : renderFirstTimeGuide(step + 1);
+  $("#guide-skip").onclick = renderWelcome;
 }
 
 export function renderLogin() {
   mountScreen(`
     <div class="auth-card">
+      <img class="logo-mark-lg" src="assets/logo.png" alt="SmolBiz logo">
       <div class="brand"><span class="dot"></span> SMOLBIZ</div>
       <h1>Welcome back</h1>
       <p class="sub">Log in to your workspace.</p>
@@ -59,6 +118,7 @@ export function renderLogin() {
 export function renderSignup() {
   mountScreen(`
     <div class="auth-card">
+      <img class="logo-mark-lg" src="assets/logo.png" alt="SmolBiz logo">
       <div class="brand"><span class="dot"></span> SMOLBIZ</div>
       <h1>Create your account</h1>
       <p class="sub">If your email was invited by an admin, we'll take you straight into their workspace. Otherwise we'll set up a new business for you.</p>
@@ -172,6 +232,7 @@ function renderAdminStep2() {
         </div>
         <div class="field"><label>Monthly revenue (approx.)</label><input id="biz-revenue" type="number" min="0" placeholder="e.g. 3000"></div>
       </div>
+      <div class="field"><label>Email to contact (for Collab & Trend)</label><input id="biz-contact-email" type="email" placeholder="hello@yourbusiness.com"></div>
       <div class="field">
         <label>Company location (optional)</label>
         <button type="button" class="btn btn-ghost btn-block" id="use-location">📍 Use my current location</button>
@@ -195,6 +256,7 @@ function renderAdminStep2() {
     state.onboarding.businessName = name;
     state.onboarding.salesPlatform = $("#biz-platform").value;
     state.onboarding.monthlyRevenue = $("#biz-revenue").value || 0;
+    state.onboarding.contactEmail = $("#biz-contact-email").value.trim();
 
     const file = $("#biz-logo").files[0];
     if (file) {
@@ -257,6 +319,7 @@ async function finishAdminOnboarding(invites) {
     business_type: ob.businessType,
     sales_platform: ob.salesPlatform,
     monthly_revenue: ob.monthlyRevenue || 0,
+    contact_email: ob.contactEmail || null,
     location_lat: ob.locationLat,
     location_lng: ob.locationLng
   }).select().single();
@@ -288,8 +351,12 @@ async function finishAdminOnboarding(invites) {
 
 export async function logout() {
   await supabase.auth.signOut();
+  if (state.globalMsgSubscription) { supabase.removeChannel(state.globalMsgSubscription); state.globalMsgSubscription = null; }
+  if (state.chatSubscription) { supabase.removeChannel(state.chatSubscription); state.chatSubscription = null; }
   state.user = null;
   state.profile = null;
   state.business = null;
+  state.businessChannelIds = [];
+  state.activeChannelId = null;
   renderWelcome();
 }
