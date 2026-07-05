@@ -35,7 +35,7 @@ export function renderShell(activePage) {
   app.innerHTML = `
     <div class="app-shell">
       <div class="sidebar" id="sidebar">
-        <div class="brand"><img class="logo-mark" src="assets/logo.png" alt="SmolBiz"> SMOLBIZ</div>
+        <div class="brand"><img class="logo-mark" src="assets/logo.png" alt="SmolBiz"> SmolBIZ</div>
         ${nav.map(n => `<div class="nav-item ${n.id === activePage ? "active" : ""}" data-page="${n.id}">
             <span class="ic">${n.ic}${(n.id === "chat" && getChatUnreadFlag() && activePage !== "chat") ? `<span class="unread-dot"></span>` : ""}</span> ${n.label}
           </div>`).join("")}

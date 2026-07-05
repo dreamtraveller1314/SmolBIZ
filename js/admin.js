@@ -393,7 +393,7 @@ export async function renderCollab() {
             <div class="niche">${(b.business_type || "business").replace(/_/g, " ")}</div>
             <span class="collab-tag">${collabTypeFor(b.business_type)}</span>
             ${b.contact_email ? `<div class="meta" style="margin-top:8px;">✉️ <a href="mailto:${b.contact_email}">${b.contact_email}</a></div>` : `<div class="meta" style="margin-top:8px;">No contact email listed yet</div>`}
-          </div>`).join("") : `<div class="empty-state">No other businesses on SMOLBIZ yet — check back soon.</div>`}
+          </div>`).join("") : `<div class="empty-state">No other businesses on SmolBIZ yet — check back soon.</div>`}
       </div>
     </div>
     <div class="panel">
@@ -401,7 +401,7 @@ export async function renderCollab() {
         <h3>Collab event announcements</h3>
         ${isAdmin ? `<button class="btn btn-primary btn-sm" id="qa-announce">+ Announce an event</button>` : ""}
       </div>
-      <p class="sub" style="margin-top:-8px;">Posted by any business on SMOLBIZ, with the contact to reach out to.</p>
+      <p class="sub" style="margin-top:-8px;">Posted by any business on SmolBIZ, with the contact to reach out to.</p>
       ${(collabEvents && collabEvents.length) ? collabEvents.map(e => `
         <div class="item-card">
           <div class="item-main">
@@ -432,7 +432,7 @@ function openAnnounceCollabModal(onDone) {
   openModal(`
     <button class="modal-close" id="modal-x">✕</button>
     <h3>Announce a collab event</h3>
-    <p class="sub" style="margin-top:-8px;">Visible to every business on SMOLBIZ, alongside your contact email.</p>
+    <p class="sub" style="margin-top:-8px;">Visible to every business on SmolBIZ, alongside your contact email.</p>
     <div class="field"><label>Title</label><input id="ce-title" placeholder="e.g. Pop-up market this weekend"></div>
     <div class="field"><label>Date & time</label><input id="ce-time" type="datetime-local"></div>
     <div class="field"><label>Description (optional)</label><input id="ce-desc" placeholder="What are you looking for / offering?"></div>
@@ -548,7 +548,7 @@ const BUSINESS_TYPE_OPTIONS = [
   { value: "services", label: "Services" },
   { value: "others", label: "Others" }
 ];
-const SALES_PLATFORM_OPTIONS = ["in_person", "instagram", "shopify", "etsy", "tiktok_shop", "other"];
+const SALES_PLATFORM_OPTIONS = ["in_person", "instagram", "shopee", "lazada", "tiktok_shop", "other"];
 
 export async function renderAdminSettings() {
   renderShell("settings");

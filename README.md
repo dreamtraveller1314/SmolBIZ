@@ -1,4 +1,4 @@
-# SMOLBIZ
+# SmolBIZ
 
 A small-business operations app: onboarding, sales & product tracking, AI sales
 insights, worker attendance (GPS + photo), team chat with automatic calendar

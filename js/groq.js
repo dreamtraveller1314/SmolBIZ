@@ -32,7 +32,7 @@ async function askGroq(systemPrompt, userPrompt) {
 
 // Builds a short natural-language insight from raw sales/expense numbers.
 export async function generateInsight({ businessName, todaySales, weekSales, lastWeekSales, topProduct, lowStock }) {
-  const system = "You are a concise business analyst assistant embedded in a small-business dashboard called SMOLBIZ. Reply with 2-3 short sentences, plain language, no markdown, no preamble.";
+  const system = "You are a concise business analyst assistant embedded in a small-business dashboard called SmolBIZ. Reply with 2-3 short sentences, plain language, no markdown, no preamble.";
   const change = lastWeekSales > 0 ? (((weekSales - lastWeekSales) / lastWeekSales) * 100).toFixed(0) : null;
   const user = `Business: ${businessName}. Today's sales: $${todaySales.toFixed(2)}. This week's sales: $${weekSales.toFixed(2)}. Last week: $${lastWeekSales.toFixed(2)}. Top product: ${topProduct || "n/a"}. Low stock items: ${lowStock || 0}. Write a short insight summary mentioning the week-over-week trend and one actionable suggestion.`;
 

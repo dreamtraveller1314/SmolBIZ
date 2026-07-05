@@ -19,7 +19,7 @@ export function renderWelcome() {
   mountScreen(`
     <div class="auth-card" style="text-align:center;max-width:380px;">
       <img class="logo-mark-lg" src="assets/logo.png" alt="SmolBiz logo">
-      <div class="brand" style="justify-content:center;"><span class="dot"></span> SMOLBIZ</div>
+      <div class="brand" style="justify-content:center;"><span class="dot"></span> SmolBIZ</div>
       <h1 style="margin-top:18px;">Run your small business from one tab.</h1>
       <p class="sub">Sales, stock, shifts, and your team's group chat — with an AI assist that reads your numbers so you don't have to.</p>
       <button class="btn btn-primary btn-block" id="go-signup">Get started</button>
@@ -91,7 +91,7 @@ export function renderLogin() {
   mountScreen(`
     <div class="auth-card">
       <img class="logo-mark-lg" src="assets/logo.png" alt="SmolBiz logo">
-      <div class="brand"><span class="dot"></span> SMOLBIZ</div>
+      <div class="brand"><span class="dot"></span> SmolBIZ</div>
       <h1>Welcome back</h1>
       <p class="sub">Log in to your workspace.</p>
       <div id="auth-error"></div>
@@ -119,7 +119,7 @@ export function renderSignup() {
   mountScreen(`
     <div class="auth-card">
       <img class="logo-mark-lg" src="assets/logo.png" alt="SmolBiz logo">
-      <div class="brand"><span class="dot"></span> SMOLBIZ</div>
+      <div class="brand"><span class="dot"></span> SmolBIZ</div>
       <h1>Create your account</h1>
       <p class="sub">If your email was invited by an admin, we'll take you straight into their workspace. Otherwise we'll set up a new business for you.</p>
       <div id="auth-error"></div>
@@ -224,8 +224,8 @@ function renderAdminStep2() {
           <select id="biz-platform">
             <option value="in_person">In person</option>
             <option value="instagram">Instagram</option>
-            <option value="shopify">Shopify</option>
-            <option value="etsy">Etsy</option>
+            <option value="shopee">Shopee</option>
+            <option value="lazada">Lazada</option>
             <option value="tiktok_shop">TikTok Shop</option>
             <option value="other">Other</option>
           </select>
