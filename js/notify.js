@@ -43,6 +43,8 @@ export function setSoundEnabled(v) {
 // reset its playback position on every call so rapid-fire notifications
 // each restart the sound instead of getting dropped mid-play.
 let notifyAudio = null;
+let audioUnlocked = false;
+
 function getNotifyAudio() {
   if (!notifyAudio) {
     notifyAudio = new Audio("assets/notification.mp3");
@@ -52,14 +54,45 @@ function getNotifyAudio() {
   return notifyAudio;
 }
 
+// Most browsers (especially Safari/iOS) refuse to play audio with sound
+// until the page has seen a real user gesture (click/tap/keypress), and some
+// will also throw if you touch `currentTime` before the file has metadata
+// loaded. A notification that arrives over the realtime socket is never
+// itself a user gesture, so without this the very first play() call (and
+// sometimes every call) got silently swallowed by the try/catch below and
+// nothing was ever heard. We "unlock" playback once, on the first real
+// interaction anywhere on the page, so later notification sounds are free
+// to play programmatically.
+function unlockAudioOnce() {
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+  const audio = getNotifyAudio();
+  const p = audio.play();
+  if (p && typeof p.catch === "function") {
+    p.then(() => { audio.pause(); audio.currentTime = 0; }).catch(() => { audioUnlocked = false; });
+  } else {
+    audio.pause();
+  }
+}
+["click", "touchstart", "keydown"].forEach(evt => {
+  document.addEventListener(evt, unlockAudioOnce, { once: true, passive: true });
+});
+
 export function playNotifySound() {
   if (!isSoundEnabled()) return;
   try {
     const audio = getNotifyAudio();
-    audio.currentTime = 0;
+    // Only reset playback position once the element actually has metadata —
+    // setting currentTime before that (readyState 0) throws in some browsers
+    // and would otherwise abort play() before it even starts.
+    if (audio.readyState > 0) {
+      try { audio.currentTime = 0; } catch (e) { /* ignore, play() below still runs */ }
+    }
     const p = audio.play();
-    if (p && typeof p.catch === "function") p.catch(() => {});
-  } catch (e) { /* ignore — sound is a nice-to-have */ }
+    if (p && typeof p.catch === "function") {
+      p.catch(e => console.warn("Notification sound couldn't play (likely needs a user interaction first):", e));
+    }
+  } catch (e) { console.warn("Notification sound failed:", e); }
 }
 
 // Whether the sidebar's "Chat & Calendar" nav item should show a dot.

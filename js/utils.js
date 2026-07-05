@@ -70,8 +70,8 @@ const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "frida
 
 // Local, offline fallback "NLP": looks for meeting-style phrases and a time.
 // Understands "today", "tomorrow", plain weekday names ("monday"), and
-// "next <weekday>" (which always means the occurrence in the coming week,
-// not today even if today happens to be that weekday).
+// "next <weekday>" (both mean the nearest upcoming occurrence of that
+// weekday, never today even if today happens to be that weekday).
 // Returns { title, when: Date } or null. This runs instantly and is also
 // used when the Groq call in groq.js is unavailable or fails.
 export function parseMeetingIntent(text) {
@@ -99,7 +99,6 @@ export function parseMeetingIntent(text) {
     const targetDay = WEEKDAYS.indexOf(nextWeekdayMatch[1]);
     let delta = (targetDay - now.getDay() + 7) % 7;
     delta = delta === 0 ? 7 : delta; // "next monday" always means a future monday, never today
-    delta += 7; // "next" pushes it to the week after this coming one
     when.setDate(when.getDate() + delta);
   } else if (plainWeekdayMatch) {
     const targetDay = WEEKDAYS.indexOf(plainWeekdayMatch[1]);

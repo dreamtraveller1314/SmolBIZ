@@ -1,5 +1,5 @@
 import { supabase } from "./supabaseClient.js";
-import { $, money, fmtDate, toast, distanceMeters } from "./utils.js";
+import { $, money, fmtDate, toast, distanceMeters, initials } from "./utils.js";
 import { state } from "./state.js";
 import { mountMain, pageHeader, openModal, closeModal, renderShell } from "./shell.js";
 import { ATTENDANCE_RADIUS_METERS } from "./config.js";
@@ -232,6 +232,7 @@ function openWorkerSaleModal() {
         <div class="field"><label>Quantity</label><input id="t-qty" type="number" min="1" value="1"></div>
         <div class="field"><label>Amount</label><input id="t-amount" type="number" step="0.01" min="0"></div>
       </div>
+      <div class="field"><label>Customer name (optional)</label><input id="t-customer" placeholder="Walk-in, or who bought it"></div>
       <div class="field"><label>Payment method</label>
         <select id="t-payment"><option>Cash</option><option>Card</option><option>Bank transfer</option><option>E-wallet</option></select>
       </div>
@@ -255,11 +256,15 @@ function openWorkerSaleModal() {
       const payload = {
         business_id: state.business.id, type: "sale", amount,
         payment_method: $("#t-payment").value, worker_id: state.profile.id,
-        product_id: productSel.value || null, quantity: parseInt($("#t-qty").value) || 1, photo_url
+        product_id: productSel.value || null, quantity: parseInt($("#t-qty").value) || 1, photo_url,
+        customer_name: $("#t-customer").value.trim() || null
       };
       if (payload.product_id) {
         const prod = products.find(p => p.id === payload.product_id);
-        if (prod) await supabase.from("products").update({ stock: Math.max(0, prod.stock - payload.quantity) }).eq("id", prod.id);
+        if (prod) {
+          await supabase.from("products").update({ stock: Math.max(0, prod.stock - payload.quantity) }).eq("id", prod.id);
+          payload.cost_at_sale = (Number(prod.cost) || 0) * payload.quantity;
+        }
       }
       const { error } = await supabase.from("transactions").insert(payload);
       if (error) return toast(error.message, "error");
@@ -296,12 +301,34 @@ export async function renderWorkerSettings() {
   mountMain(`
     ${pageHeader("Settings")}
     <div class="panel">
+      <h3>Your profile picture</h3>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div class="avatar" style="width:64px;height:64px;font-size:20px;overflow:hidden;">
+          ${p.avatar_url ? `<img src="${p.avatar_url}" style="width:100%;height:100%;object-fit:cover;">` : initials(p.name)}
+        </div>
+        <div class="field" style="flex:1;margin:0;"><input id="w-avatar" type="file" accept="image/*"></div>
+      </div>
+      <button class="btn btn-primary" id="save-avatar" style="margin-top:14px;">Upload picture</button>
+    </div>
+    <div class="panel">
       <h3>My profile</h3>
       <div class="field"><label>Name</label><input id="w-name" value="${p.name || ""}"></div>
       <div class="field"><label>Phone</label><input id="w-phone" value="${p.phone || ""}"></div>
       <button class="btn btn-primary" id="save-worker">Save changes</button>
     </div>
   `);
+  $("#save-avatar").onclick = async () => {
+    const file = $("#w-avatar").files[0];
+    if (!file) return toast("Choose a picture first", "error");
+    const path = `avatars/${p.id}-${Date.now()}-${file.name}`;
+    const { error: upErr } = await supabase.storage.from("smolbiz-media").upload(path, file);
+    if (upErr) return toast(upErr.message, "error");
+    const avatar_url = supabase.storage.from("smolbiz-media").getPublicUrl(path).data.publicUrl;
+    await supabase.from("profiles").update({ avatar_url }).eq("id", p.id);
+    Object.assign(state.profile, { avatar_url });
+    toast("Profile picture updated", "success");
+    renderWorkerSettings();
+  };
   $("#save-worker").onclick = async () => {
     const payload = { name: $("#w-name").value.trim(), phone: $("#w-phone").value.trim() };
     await supabase.from("profiles").update(payload).eq("id", p.id);

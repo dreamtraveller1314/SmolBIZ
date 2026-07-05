@@ -41,7 +41,7 @@ export function renderShell(activePage) {
           </div>`).join("")}
         <div class="sidebar-footer">
           <div class="who">
-            <div class="avatar">${initials(state.profile.name)}</div>
+            <div class="avatar" style="overflow:hidden;">${state.profile.avatar_url ? `<img src="${state.profile.avatar_url}" style="width:100%;height:100%;object-fit:cover;">` : initials(state.profile.name)}</div>
             <div>
               <div class="name">${state.profile.name || state.profile.email}</div>
               <div class="role">${state.profile.role}</div>

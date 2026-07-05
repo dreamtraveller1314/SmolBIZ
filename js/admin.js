@@ -64,7 +64,7 @@ export async function renderAdminHome() {
   const todaySales = sales.filter(t => new Date(t.created_at) >= startOfDay).reduce((s, t) => s + Number(t.amount), 0);
   const weekSales = sales.filter(t => new Date(t.created_at) >= startOfWeek).reduce((s, t) => s + Number(t.amount), 0);
   const lastWeekSales = sales.filter(t => new Date(t.created_at) >= startOfLastWeek && new Date(t.created_at) < startOfWeek).reduce((s, t) => s + Number(t.amount), 0);
-  const totalProfit = sales.reduce((s, t) => s + Number(t.amount), 0) - expenses.reduce((s, t) => s + Number(t.amount), 0);
+  const totalProfit = sales.reduce((s, t) => s + Number(t.amount) - Number(t.cost_at_sale || 0), 0) - expenses.reduce((s, t) => s + Number(t.amount), 0);
   const pendingOrders = all.filter(t => t.type === "sale" && (t.note || "").toLowerCase().includes("pending")).length;
   const lowStockItems = (products || []).filter(p => p.stock <= p.low_stock_threshold);
 
@@ -288,6 +288,23 @@ function openProductModal(product, onDone) {
       ? await supabase.from("products").update(payload).eq("id", product.id)
       : await supabase.from("products").insert(payload);
     if (error) return toast(error.message, "error");
+
+    // Buying/making stock costs money — log it as an expense so it hits
+    // profit, same as any other cost. For a new product that's the full
+    // initial stock; for an edit, only the *added* units (a restock).
+    const priorStock = editing ? Number(product.stock || 0) : 0;
+    const stockAdded = Math.max(0, payload.stock - priorStock);
+    if (stockAdded > 0 && payload.cost > 0) {
+      await supabase.from("transactions").insert({
+        business_id: state.business.id,
+        type: "expense",
+        amount: payload.cost * stockAdded,
+        category: "Inventory / stock",
+        note: `${editing ? "Restocked" : "Initial stock"}: ${payload.name} x${stockAdded}`,
+        worker_id: state.profile.id
+      });
+    }
+
     closeModal(); toast("Saved", "success"); onDone();
   };
 }
@@ -585,6 +602,12 @@ export async function renderAdminSettings() {
         <div class="field"><label>Monthly revenue (approx.)</label><input id="s-revenue" type="number" min="0" value="${b.monthly_revenue || 0}"></div>
       </div>
       <div class="field"><label>Email to contact</label><input id="s-contact-email" type="email" value="${b.contact_email || ""}" placeholder="used on the Collab & Trend tab"></div>
+      <div class="field">
+        <label>Company location ${b.location_lat != null ? "(set)" : "(not set)"}</label>
+        <button type="button" class="btn btn-ghost btn-block" id="s-use-location">📍 ${b.location_lat != null ? "Update" : "Use"} my current location</button>
+        <div class="status-line" id="s-loc-status" style="margin-top:6px;">${b.location_lat != null ? `Currently set to (${Number(b.location_lat).toFixed(4)}, ${Number(b.location_lng).toFixed(4)}). Workers need to be nearby to clock in.` : "Not set — attendance won't be checked against a location."}</div>
+        ${b.location_lat != null ? `<button type="button" class="btn btn-ghost btn-block" id="s-clear-location" style="margin-top:6px;">Clear location</button>` : ""}
+      </div>
       <button class="btn btn-primary" id="save-company">Save company setup</button>
     </div>
     <div class="panel">
@@ -618,6 +641,27 @@ export async function renderAdminSettings() {
     await supabase.from("businesses").update(payload).eq("id", b.id);
     Object.assign(state.business, payload);
     toast("Saved", "success");
+  };
+  $("#s-use-location").onclick = () => {
+    if (!navigator.geolocation) return toast("Geolocation isn't available in this browser", "error");
+    $("#s-loc-status").textContent = "Getting location…";
+    navigator.geolocation.getCurrentPosition(async pos => {
+      const location_lat = pos.coords.latitude, location_lng = pos.coords.longitude;
+      const { error } = await supabase.from("businesses").update({ location_lat, location_lng }).eq("id", b.id);
+      if (error) return toast(error.message, "error");
+      Object.assign(state.business, { location_lat, location_lng });
+      toast("Location updated", "success");
+      renderAdminSettings();
+    }, () => { $("#s-loc-status").textContent = "Couldn't get your location — check browser permissions."; });
+  };
+  const clearLocBtn = $("#s-clear-location");
+  if (clearLocBtn) clearLocBtn.onclick = async () => {
+    if (!confirm("Clear the company location? Workers will no longer be checked for proximity when clocking in.")) return;
+    const { error } = await supabase.from("businesses").update({ location_lat: null, location_lng: null }).eq("id", b.id);
+    if (error) return toast(error.message, "error");
+    Object.assign(state.business, { location_lat: null, location_lng: null });
+    toast("Location cleared", "success");
+    renderAdminSettings();
   };
   $("#save-company").onclick = async () => {
     const payload = {
